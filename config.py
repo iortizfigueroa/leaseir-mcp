@@ -49,7 +49,7 @@ AIRTABLE_DRAFT_STATUS = _get("AIRTABLE_DRAFT_STATUS", "Pendiente de Aprobación"
 JIRA_BASE_URL = _get("JIRA_BASE_URL")  # p.ej. https://leaseir.atlassian.net
 JIRA_EMAIL = _get("JIRA_EMAIL")
 JIRA_API_TOKEN = _get("JIRA_API_TOKEN")
-JIRA_PROJECT_KEY = _get("JIRA_PROJECT_KEY", "SAT")
+JIRA_PROJECT_KEY = _get("JIRA_PROJECT_KEY", "LEAS")  # los tickets son LEAS-XXXX
 JIRA_ISSUE_TYPE = _get("JIRA_ISSUE_TYPE", "Task")
 
 # --- MongoDB Cloudmed (telemetría real de los equipos) ----------------------

@@ -188,20 +188,29 @@ def buscar_incidencias_sat(
     cliente: str | None = None,
     estado: str | None = None,
     jql_extra: str | None = None,
+    solo_abiertas: bool = False,
     limite: int = 20,
 ) -> list[dict[str, Any]] | dict[str, Any]:
-    """Busca incidencias de servicio técnico (SAT) en Jira.
+    """Busca incidencias de servicio técnico (SAT) en Jira, ya CLASIFICADAS como en el portal de Elha.
 
-    Filtra por cliente (busca en el texto de la incidencia), estado (Status de
-    Jira, p.ej. 'To Do', 'In Progress', 'Done') y, opcionalmente, un fragmento
-    de JQL adicional para filtros avanzados. Devuelve clave, resumen, estado,
-    prioridad, asignado, fechas y enlace directo a Jira.
+    No devuelve datos en crudo: cada incidencia viene con 'abierta' (true/false
+    según los 30 estados abiertos de LEAS), 'funnel' (A=Gestión en taller,
+    B=Gestión externa, C=Gestión online), 'fase' (paso del funnel), y los campos
+    de negocio (cliente/centro, consola, manípulo, modelo, bloqueante,
+    sustitución, forma de resolución). Incluye además un 'resumen' con el conteo
+    de abiertas/cerradas y abiertas por funnel.
+
+    - Para "qué incidencias están ABIERTAS" usa solo_abiertas=True: filtra los
+      estados exactamente como la pantalla de Incidencias Abiertas del portal.
+    - 'cliente' busca en el texto del ticket; 'estado' fuerza un Status concreto;
+      'jql_extra' permite un fragmento JQL avanzado.
     """
     return _safe(
         jira_client.buscar_incidencias,
         cliente=cliente,
         estado=estado,
         jql_extra=jql_extra,
+        solo_abiertas=solo_abiertas,
         limit=limite,
     )
 
@@ -210,8 +219,10 @@ def buscar_incidencias_sat(
 def detalle_incidencia_sat(clave: str) -> dict[str, Any]:
     """Devuelve el detalle completo de una incidencia SAT de Jira por su clave.
 
-    'clave' es el identificador tipo 'SAT-123'. Incluye resumen, estado,
-    prioridad, asignado, descripción y enlace.
+    'clave' es el identificador tipo 'LEAS-123'. Incluye la clasificación del
+    portal (abierta, funnel, fase), los campos de negocio (cliente, consola,
+    manípulo, modelo, bloqueante, sustitución, tipo y descripción de avería) y
+    la descripción/enlace del ticket.
     """
     return _safe(jira_client.detalle_incidencia, clave)
 
