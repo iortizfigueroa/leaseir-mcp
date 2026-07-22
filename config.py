@@ -32,6 +32,9 @@ PORT = int(_get("PORT", "8000"))
 # se conecte debe enviar  Authorization: Bearer <MCP_AUTH_TOKEN>.
 # Déjalo vacío SOLO para pruebas locales. En Render, ponlo siempre.
 MCP_AUTH_TOKEN = _get("MCP_AUTH_TOKEN", "")
+# URL pública del servicio (Render la inyecta como RENDER_EXTERNAL_URL). Se usa
+# como base para los endpoints OAuth que consume el conector de Claude/ChatGPT.
+PUBLIC_BASE_URL = _get("RENDER_EXTERNAL_URL") or _get("PUBLIC_BASE_URL") or f"http://localhost:{PORT}"
 
 # --- Airtable (base "Leaseir") ---------------------------------------------
 AIRTABLE_API_KEY = _get("AIRTABLE_API_KEY")

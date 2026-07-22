@@ -14,12 +14,27 @@ from __future__ import annotations
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.server.auth.providers.in_memory import InMemoryOAuthProvider
+from mcp.server.auth.settings import ClientRegistrationOptions
 
 import config
 from sources import airtable_client, cloudmed, jira_client, mantenimiento
 
+# Autenticación OAuth 2.1 para que el conector de Claude/ChatGPT/Gemini pueda
+# conectarse (esos clientes exigen OAuth con registro dinámico de cliente, no un
+# token estático). Este proveedor implementa el flujo completo (metadata,
+# /register, /authorize, /token) sobre la propia app.
+#   NOTA v1: es un proveedor de "grado test" (auto-aprueba el consentimiento);
+#   el acceso queda protegido de facto por lo privado de la URL. Antes de
+#   exponerlo a clientes conviene un login real / IdP o restringir por red.
+_auth = InMemoryOAuthProvider(
+    base_url=config.PUBLIC_BASE_URL,
+    client_registration_options=ClientRegistrationOptions(enabled=True),
+)
+
 mcp = FastMCP(
     name="Leaseir",
+    auth=_auth,
     instructions=(
         "Acceso a los datos operativos de Leaseir: parque de equipos y pedidos "
         "(Airtable), incidencias de servicio técnico / SAT (Jira) y telemetría en "
@@ -342,30 +357,10 @@ async def health(_request):  # noqa: ANN001
 
 
 def build_app():
-    """Construye la app ASGI con el gate de token (si MCP_AUTH_TOKEN está puesto)."""
-    app = mcp.http_app()
-
-    if config.MCP_AUTH_TOKEN:
-        from starlette.middleware.base import BaseHTTPMiddleware
-        from starlette.responses import JSONResponse
-
-        class BearerTokenMiddleware(BaseHTTPMiddleware):
-            async def dispatch(self, request, call_next):  # noqa: ANN001
-                if request.url.path.rstrip("/") == "/health":
-                    return await call_next(request)
-                # Se acepta el token de dos formas:
-                #  - Cabecera:  Authorization: Bearer <token>
-                #  - Query param: ...?token=<token>   (para clientes como el
-                #    conector de Claude/ChatGPT que no dejan poner cabeceras)
-                header_ok = request.headers.get("authorization", "") == f"Bearer {config.MCP_AUTH_TOKEN}"
-                query_ok = request.query_params.get("token") == config.MCP_AUTH_TOKEN
-                if not (header_ok or query_ok):
-                    return JSONResponse({"error": "no autorizado"}, status_code=401)
-                return await call_next(request)
-
-        app.add_middleware(BearerTokenMiddleware)
-
-    return app
+    """Construye la app ASGI. La autenticación la gestiona el proveedor OAuth
+    del FastMCP: http_app() expone la metadata .well-known y los endpoints
+    /register, /authorize y /token que usa el conector de Claude."""
+    return mcp.http_app()
 
 
 # Objeto ASGI para servidores tipo `uvicorn server:app`
