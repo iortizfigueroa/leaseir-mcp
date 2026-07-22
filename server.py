@@ -353,9 +353,13 @@ def build_app():
             async def dispatch(self, request, call_next):  # noqa: ANN001
                 if request.url.path.rstrip("/") == "/health":
                     return await call_next(request)
-                auth = request.headers.get("authorization", "")
-                expected = f"Bearer {config.MCP_AUTH_TOKEN}"
-                if auth != expected:
+                # Se acepta el token de dos formas:
+                #  - Cabecera:  Authorization: Bearer <token>
+                #  - Query param: ...?token=<token>   (para clientes como el
+                #    conector de Claude/ChatGPT que no dejan poner cabeceras)
+                header_ok = request.headers.get("authorization", "") == f"Bearer {config.MCP_AUTH_TOKEN}"
+                query_ok = request.query_params.get("token") == config.MCP_AUTH_TOKEN
+                if not (header_ok or query_ok):
                     return JSONResponse({"error": "no autorizado"}, status_code=401)
                 return await call_next(request)
 
