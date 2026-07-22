@@ -189,9 +189,10 @@ def buscar_incidencias_sat(
     estado: str | None = None,
     jql_extra: str | None = None,
     solo_abiertas: bool = False,
+    tipo: str | None = "Task",
     limite: int = 20,
 ) -> list[dict[str, Any]] | dict[str, Any]:
-    """Busca incidencias de servicio técnico (SAT) en Jira, ya CLASIFICADAS como en el portal de Elha.
+    """Busca incidencias de servicio técnico (SAT) en Jira, con el MISMO racional que el portal de Elha.
 
     No devuelve datos en crudo: cada incidencia viene con 'abierta' (true/false
     según los 30 estados abiertos de LEAS), 'funnel' (A=Gestión en taller,
@@ -200,10 +201,15 @@ def buscar_incidencias_sat(
     sustitución, forma de resolución). Incluye además un 'resumen' con el conteo
     de abiertas/cerradas y abiertas por funnel.
 
+    - Igual que el portal, por defecto SOLO cuenta las incidencias de servicio
+      técnico (tipo Task): NO incluye "Máquina de sustitución" ni "Revisión queja
+      Calidad". Para verlas todas, pasa tipo=None.
     - Para "qué incidencias están ABIERTAS" usa solo_abiertas=True: filtra los
       estados exactamente como la pantalla de Incidencias Abiertas del portal.
-    - 'cliente' busca en el texto del ticket; 'estado' fuerza un Status concreto;
-      'jql_extra' permite un fragmento JQL avanzado.
+    - 'cliente' se busca en los CAMPOS Cliente/centro y en los seriales de consola
+      y manípulo (no en texto libre), así que sirve tanto para "Elha" como para un
+      serial ("40679", "C00519") y no arrastra tickets de otros clientes.
+    - 'estado' fuerza un Status concreto; 'jql_extra' permite JQL avanzado.
     """
     return _safe(
         jira_client.buscar_incidencias,
@@ -211,6 +217,7 @@ def buscar_incidencias_sat(
         estado=estado,
         jql_extra=jql_extra,
         solo_abiertas=solo_abiertas,
+        tipo=tipo,
         limit=limite,
     )
 

@@ -223,19 +223,33 @@ def buscar_incidencias(
     estado: str | None = None,
     jql_extra: str | None = None,
     solo_abiertas: bool = False,
+    tipo: str | None = "Task",
     limit: int = 20,
 ) -> dict[str, Any]:
-    """Busca incidencias de SAT en Jira y las devuelve YA clasificadas.
+    """Busca incidencias de SAT en Jira y las devuelve YA clasificadas, con el
+    MISMO racional que la pantalla de Incidencias del portal de Elha.
 
-    - solo_abiertas=True filtra a los 30 estados "abiertos" de LEAS (como el
-      portal de Elha), en vez de traer todo en crudo.
+    - tipo="Task" (por defecto, como el portal): solo cuenta las incidencias de
+      servicio técnico. Excluye los tickets de "Máquina de sustitución" y de
+      "Revisión queja Calidad", que son de otros tipos. Pasa tipo=None para
+      traer todos los tipos.
+    - solo_abiertas=True filtra a los 30 estados "abiertos" de LEAS.
+    - 'cliente' se busca en los CAMPOS Cliente/centro, serial de consola y serial
+      de manípulo (NO en texto libre), para no arrastrar tickets de otros
+      clientes que solo mencionen la palabra. Sirve tanto para nombre de cliente
+      ("Elha") como para un serial ("40679", "C00519").
     - Devuelve un resumen (total, abiertas, cerradas, por funnel) + la lista de
       incidencias enriquecidas (abierta, funnel, fase, cliente, consola,
       manípulo, bloqueante, sustitución...).
     """
     clauses = [f"project = {config.JIRA_PROJECT_KEY}"]
+    # Igual que el portal: solo incidencias de servicio técnico (type = Task).
+    if tipo:
+        clauses.append(f'issuetype = "{_jql_escape(tipo)}"')
+    # Filtro por CAMPOS (Cliente/centro + seriales), no por texto libre.
     if cliente:
-        clauses.append(f'text ~ "{_jql_escape(cliente)}"')
+        c = _jql_escape(cliente)
+        clauses.append(f'(cf[10211] ~ "{c}" OR cf[10171] ~ "{c}" OR cf[10150] ~ "{c}")')
     if estado:
         clauses.append(f'status = "{_jql_escape(estado)}"')
     elif solo_abiertas:
