@@ -32,6 +32,8 @@ services:
         sync: false
       - key: JIRA_ISSUE_TYPE
         value: Task
+      - key: CODES_API_BASE_URL
+        value: https://codes-api-production.up.railway.app
       - key: CLOUDMED_MONGO_URI
         sync: false
       - key: CLOUDMED_DB

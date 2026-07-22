@@ -52,6 +52,10 @@ JIRA_API_TOKEN = _get("JIRA_API_TOKEN")
 JIRA_PROJECT_KEY = _get("JIRA_PROJECT_KEY", "LEAS")  # los tickets son LEAS-XXXX
 JIRA_ISSUE_TYPE = _get("JIRA_ISSUE_TYPE", "Task")
 
+# --- Activation Codes API (código de activación diario del equipo) ----------
+# API propia de Leaseir (sin auth). Se llama con el serial del manípulo.
+CODES_API_BASE_URL = _get("CODES_API_BASE_URL", "https://codes-api-production.up.railway.app")
+
 # --- MongoDB Cloudmed (telemetría real de los equipos) ----------------------
 # Mismo Mongo Atlas que usa el portal Cloudmed. Usuario READ-ONLY.
 CLOUDMED_MONGO_URI = _get("CLOUDMED_MONGO_URI")  # mongodb+srv://...  (read-only)

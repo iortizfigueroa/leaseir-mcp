@@ -18,7 +18,7 @@ from fastmcp.server.auth.providers.in_memory import InMemoryOAuthProvider
 from mcp.server.auth.settings import ClientRegistrationOptions
 
 import config
-from sources import airtable_client, cloudmed, jira_client, mantenimiento
+from sources import airtable_client, cloudmed, codes_client, jira_client, mantenimiento
 
 # Autenticación OAuth 2.1 para que el conector de Claude/ChatGPT/Gemini pueda
 # conectarse (esos clientes exigen OAuth con registro dinámico de cliente, no un
@@ -247,6 +247,36 @@ def crear_incidencia_sat(
         cliente=cliente,
         prioridad=prioridad,
     )
+
+
+# ===========================================================================
+# CÓDIGOS DE ACTIVACIÓN (API propia de Leaseir)
+# ===========================================================================
+
+@mcp.tool
+def codigo_activacion(serial: str, fecha: str | None = None) -> dict[str, Any]:
+    """Devuelve el código de activación DIARIO de un equipo.
+
+    El código son 8 dígitos (texto, puede empezar por 0) y se calcula a partir
+    del número de serie del MANÍPULO (handpiece), NO el de la consola. Cambia
+    cada día y solo vale para su fecha.
+
+    - 'serial': nº de serie del manípulo.
+    - 'fecha': 'YYYY-MM-DD' opcional; por defecto hoy. Pide el código el mismo
+      día que se va a usar.
+    """
+    return _safe(codes_client.codigo_activacion, serial, fecha=fecha)
+
+
+@mcp.tool
+def codigos_activacion(seriales: list[str], fecha: str | None = None) -> dict[str, Any]:
+    """Códigos de activación del día para VARIOS equipos a la vez (hasta 200).
+
+    Útil para un cliente con varios manípulos. 'seriales' es la lista de nº de
+    serie de manípulo. 'fecha' 'YYYY-MM-DD' opcional; por defecto hoy. Devuelve
+    un resumen (total/ok/fallidos) y el código de cada serial.
+    """
+    return _safe(codes_client.codigos_activacion, seriales, fecha=fecha)
 
 
 # ===========================================================================
