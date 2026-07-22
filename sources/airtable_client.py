@@ -110,16 +110,74 @@ def equipos_de_cliente(customer: str, limit: int = 50) -> list[dict[str, Any]]:
     )
 
 
+# --- Racional del portal de Elha para "pedidos reales" ----------------------
+# (portado de elha-portal/lib/pedidos.ts + lib/airtablePedidos.ts)
+#
+# Un "pedido real" es una venta de equipo, NO un manípulo suelto, un demo ni un
+# spray. El portal lo define con:
+#   - Type of request ∈ {Sale of new device, Competitors device (e.g. Cocoon...)}
+#   - Exclude = desmarcado  (los manípulos sueltos 40xxx van con Exclude marcado)
+# Y "entregado" (venta cerrada, lo que cuenta como equipo en el parque) añade:
+#   - Status ∈ {Entregado a Cliente, Enviado a Cliente (en vuelo)}
+#   - (esos registros llevan además el checkbox Reporting marcado)
+
+REAL_TYPES = ["Sale of new device", "Competitors device (e.g. Cocoon or Opphalo)"]
+DELIVERED_STATUSES = ["Entregado a Cliente", "Enviado a Cliente (en vuelo)"]
+
+# Status (Airtable) → Fase (UI del portal). Confirmado con Nacho 23-may-2026.
+STATUS_TO_FASE: dict[str, str] = {
+    "Pendiente de Aprobación": "Recién recibido",
+    "Pendiente de Inicio": "Pendiente fabricación",
+    "En standby": "Pendiente fabricación",
+    "En proceso de fabricación": "En proceso fabricación",
+    "En proceso de refurbish": "En proceso fabricación",
+    "Fabricado, pendiente de recogida": "Fabricado pendiente de entrega",
+    "Pendiente de Recogida": "Fabricado pendiente de entrega",
+    "Recibido en Gijón": "Fabricado pendiente de entrega",
+    "Pendiente enviar a Cliente": "Fabricado pendiente de entrega",
+    "Enviado a Cliente (en vuelo)": "En tránsito",
+    "Entregado a Cliente": "Entregado",
+}
+FASES_ORDEN = [
+    "Recién recibido",
+    "Pendiente fabricación",
+    "En proceso fabricación",
+    "Fabricado pendiente de entrega",
+    "En tránsito",
+    "Entregado",
+]
+
+
 def buscar_pedidos(
     customer: str | None = None,
     estado: str | None = None,
     country: str | None = None,
-    limit: int = 20,
-) -> list[dict[str, Any]]:
+    solo_reales: bool = True,
+    solo_entregados: bool = False,
+    incluir_excluidos: bool = False,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Busca pedidos aplicando el racional del portal de Elha.
+
+    - solo_reales=True (defecto): solo ventas de equipo (Type ∈ Sale/Competitors)
+      y descarta los marcados Exclude (manípulos sueltos), demos y sprays.
+    - solo_entregados=True: además solo los ENTREGADOS (Entregado a Cliente /
+      Enviado a Cliente en vuelo) — el nº real de equipos entregados/parque.
+    - Cada pedido se enriquece con su 'fase' (Recién recibido → Entregado) y se
+      devuelve un resumen (total y desglose por fase).
+    """
     conds: list[str] = []
     if customer:
         conds.append(f'FIND(LOWER("{_escape(customer)}"), LOWER({{Customer}}&"")) > 0')
-    if estado:
+    if solo_reales:
+        types_or = ", ".join(f'{{Type of request}}="{t}"' for t in REAL_TYPES)
+        conds.append(f"OR({types_or})")
+        if not incluir_excluidos:
+            conds.append("NOT({Exclude})")
+    if solo_entregados:
+        st_or = ", ".join(f'{{Status}}="{s}"' for s in DELIVERED_STATUSES)
+        conds.append(f"OR({st_or})")
+    elif estado:
         conds.append(f'FIND(LOWER("{_escape(estado)}"), LOWER({{Status}}&"")) > 0')
     if country:
         conds.append(f'FIND(LOWER("{_escape(country)}"), LOWER({{Country}}&"")) > 0')
@@ -128,7 +186,7 @@ def buscar_pedidos(
     if conds:
         formula = "AND(" + ", ".join(conds) + ")" if len(conds) > 1 else conds[0]
 
-    return list_records(
+    registros = list_records(
         config.AIRTABLE_TABLE_PEDIDOS,
         formula=formula,
         max_records=limit,
@@ -144,14 +202,45 @@ def buscar_pedidos(
             "Status",
             "Priority",
             "Expected Date",
+            "Delivery Date Donet",
+            "Fecha Definitiva Reporting",
             "Total Price",
             "Commercial Lead",
             "ID_Console",
             "ID_Handpiece",
             "Tracking URL",
+            "Reporting",
+            "Exclude",
         ],
         sort_field="Creada",
     )
+
+    por_fase: dict[str, int] = {}
+    equipos = 0
+    for r in registros:
+        fase = STATUS_TO_FASE.get(str(r.get("Status") or "").strip(), "Recién recibido")
+        r["Fase"] = fase
+        por_fase[fase] = por_fase.get(fase, 0) + 1
+        try:
+            equipos += int(r.get("Number of devices") or 0)
+        except (TypeError, ValueError):
+            pass
+
+    entregados = por_fase.get("Entregado", 0)
+    por_fase_ordenado = {f: por_fase[f] for f in FASES_ORDEN if f in por_fase}
+
+    return {
+        "resumen": {
+            "total_registros": len(registros),
+            "entregados": entregados,
+            "pendientes": len(registros) - entregados,
+            "suma_number_of_devices": equipos,
+            "por_fase": por_fase_ordenado,
+            "solo_reales": solo_reales,
+            "solo_entregados": solo_entregados,
+        },
+        "pedidos": registros,
+    }
 
 
 def crear_pedido_borrador(

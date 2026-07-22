@@ -105,21 +105,37 @@ def buscar_pedidos(
     cliente: str | None = None,
     estado: str | None = None,
     pais: str | None = None,
-    limite: int = 20,
+    solo_reales: bool = True,
+    solo_entregados: bool = False,
+    incluir_excluidos: bool = False,
+    limite: int = 50,
 ) -> list[dict[str, Any]] | dict[str, Any]:
-    """Busca pedidos de Leaseir (tabla Pedidos de Airtable).
+    """Busca pedidos de Leaseir (tabla Pedidos de Airtable) con el MISMO racional que el portal de Elha.
 
-    Filtra por cliente (parcial), estado (Status) y/o país. Devuelve cliente,
-    centro, nº de equipos, consola, tipo de petición, estado, prioridad, fecha
-    esperada, precio total, comercial y URL de seguimiento. Útil para
-    responder '¿qué pedidos tiene el cliente X?' o '¿qué hay pendiente de
-    enviar en España?'.
+    Por defecto solo devuelve PEDIDOS REALES de equipo: filtra por Type of request
+    (Sale of new device / Competitors device) y descarta los marcados 'Exclude'
+    (manípulos sueltos), los demos y los sprays — igual que el portal. Cada pedido
+    llega con su 'Fase' (Recién recibido → Pendiente fabricación → En proceso →
+    Fabricado pendiente de entrega → En tránsito → Entregado) y se incluye un
+    'resumen' (total, entregados, pendientes, desglose por fase).
+
+    - solo_entregados=True: cuenta solo los ENTREGADOS (Entregado a Cliente /
+      Enviado a Cliente en vuelo) → el nº real de equipos entregados/parque. P.ej.
+      "¿cuántos equipos ha recibido Elha en 2026?".
+    - solo_reales=False: trae también manípulos sueltos, demos y sprays (datos en crudo).
+    - incluir_excluidos=True: no descarta los marcados 'Exclude'.
+    - 'estado' filtra por un Status concreto; 'pais' por país.
+    Útil para "¿qué pedidos tiene el cliente X?", "¿qué hay pendiente de entregar?"
+    o "¿qué se ha entregado a Elha este año?".
     """
     return _safe(
         airtable_client.buscar_pedidos,
         customer=cliente,
         estado=estado,
         country=pais,
+        solo_reales=solo_reales,
+        solo_entregados=solo_entregados,
+        incluir_excluidos=incluir_excluidos,
         limit=limite,
     )
 

@@ -23,9 +23,16 @@ def _base() -> str:
 
 
 def _limpiar_serial(serial: str) -> str:
-    # El código se calcula sobre el texto del serial; conservamos ceros a la
-    # izquierda y solo quitamos espacios. NO convertir a número.
-    return str(serial).strip()
+    # El código se calcula sobre el NÚMERO del manípulo; conservamos ceros a la
+    # izquierda y NO convertimos a número.
+    # En Jira/Airtable el manípulo Xcell lleva prefijo "H" (H03346), pero la API
+    # lo quiere sin la "H" (03346). Los manípulos MHR ya son numéricos (40679) y
+    # se dejan igual. Sin este arreglo, un serial con "H" devuelve un código
+    # comodín erróneo.
+    s = str(serial).strip()
+    if len(s) > 1 and s[0] in ("H", "h") and s[1:].isdigit():
+        s = s[1:]
+    return s
 
 
 def codigo_activacion(serial: str, fecha: str | None = None) -> dict[str, Any]:
