@@ -44,15 +44,19 @@ def buscar_incidencias(
         clauses.append(f"({jql_extra})")
     jql = " AND ".join(clauses) + " ORDER BY updated DESC"
 
-    resp = requests.get(
-        f"{_base()}/rest/api/3/search",
+    # Nuevo endpoint de búsqueda de Jira Cloud: POST /rest/api/3/search/jql
+    # (el antiguo GET /rest/api/3/search fue retirado por Atlassian → 410 Gone).
+    # El JQL va en el body, los campos como array, y la paginación es por
+    # nextPageToken (aquí solo pedimos la primera página con maxResults).
+    resp = requests.post(
+        f"{_base()}/rest/api/3/search/jql",
         auth=_auth(),
-        params={
+        json={
             "jql": jql,
             "maxResults": limit,
-            "fields": "summary,status,assignee,priority,updated,created,reporter",
+            "fields": ["summary", "status", "assignee", "priority", "updated", "created", "reporter"],
         },
-        headers={"Accept": "application/json"},
+        headers={"Accept": "application/json", "Content-Type": "application/json"},
         timeout=30,
     )
     resp.raise_for_status()
