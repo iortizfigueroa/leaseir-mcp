@@ -1,0 +1,44 @@
+# Despliegue en Render (https://render.com) como Web Service.
+# Sube este repo a GitHub, en Render pulsa "New +" -> "Blueprint" y apunta
+# a este render.yaml. Rellena las variables marcadas sync:false en el panel.
+services:
+  - type: web
+    name: leaseir-mcp
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: MCP_AUTH_TOKEN
+        sync: false
+      - key: AIRTABLE_API_KEY
+        sync: false
+      - key: AIRTABLE_BASE_ID
+        value: app9U5sz7YS8y9Oit
+      - key: AIRTABLE_TABLE_INMOVILIZADO
+        value: Inmovilizado
+      - key: AIRTABLE_TABLE_PEDIDOS
+        value: Pedidos
+      - key: AIRTABLE_DRAFT_STATUS
+        sync: false
+      - key: JIRA_BASE_URL
+        sync: false
+      - key: JIRA_EMAIL
+        sync: false
+      - key: JIRA_API_TOKEN
+        sync: false
+      - key: JIRA_PROJECT_KEY
+        sync: false
+      - key: JIRA_ISSUE_TYPE
+        value: Task
+      - key: CLOUDMED_MONGO_URI
+        sync: false
+      - key: CLOUDMED_DB
+        value: cloudmed
+      - key: CLOUDMED_COLLECTION
+        value: pulses_handpiece_2026
+      - key: CLOUDMED_MESSAGES_COLLECTION
+        value: messages
+      - key: CLOUDMED_TZ
+        value: Europe/Madrid
